@@ -32,10 +32,9 @@ EOF
 
 # Try to auto-apply via LevelDB (only works when Brave is closed)
 if command -v node &>/dev/null && [ -f "$APPLY_SCRIPT" ]; then
-    APPLY_RESULT=$(
-        node "$APPLY_SCRIPT" 2>&1
-    )
-    case $? in
+    APPLY_RESULT=$(node "$APPLY_SCRIPT" 2>&1)
+    APPLY_EXIT=$?
+    case $APPLY_EXIT in
         0)
             printf "Dark Reader auto-applied via LevelDB:\n"
             printf "  %s\n" "$APPLY_RESULT"

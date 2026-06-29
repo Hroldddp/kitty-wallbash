@@ -19,6 +19,7 @@ Every time you switch wallpapers, everything updates automatically.
 - [fastfetch](https://github.com/fastfetch-cli/fastfetch) (usually included with HyDE)
 - Hyprland (for automatic reloading on wallpaper change)
 - Brave/Chrome with [Dark Reader](https://darkreader.org/) (optional, for browser theming)
+- Node.js 18+ (optional, for Dark Reader auto-apply)
 
 ## Installation
 
@@ -29,13 +30,21 @@ chmod +x install.sh
 ./install.sh
 ```
 
-This will:
-1. Copy `kitty.dcol` → `~/.config/hyde/wallbash/always/` — wallbash template for kitty
-2. Copy `darkreader.dcol` → `~/.config/hyde/wallbash/always/` — wallbash template for Dark Reader
-3. Copy `darkreader.sh` → `~/.config/hyde/wallbash/scripts/` — post-process script
-4. Remove the static theme include from `~/.config/kitty/kitty.conf`
-5. Configure fastfetch to use `~/.cache/hyde/wall.sqre` as the logo
-6. Apply the current wallpaper's colors
+Re-run `./install.sh` after updating HyDE to refresh the version snapshot. Use `./install.sh --force` to reinstall npm dependencies.
+
+### What gets installed
+
+| File | Destination | Purpose |
+|---|---|---|
+| `config/kitty.dcol` | `~/.config/hyde/wallbash/always/` | Wallbash template for kitty colors |
+| `config/darkreader.dcol` | `~/.config/hyde/wallbash/always/` | Wallbash template for Dark Reader colors |
+| `scripts/darkreader.sh` | `~/.config/hyde/wallbash/scripts/` | Post-process: generates preset + calls auto-apply |
+| `scripts/darkreader-apply.js` | `~/.config/hyde/wallbash/scripts/` | Writes colors to Brave's LevelDB storage |
+| `scripts/wallbash-check.sh` | `~/.config/hyde/wallbash/scripts/` | Diagnostic: check the whole pipeline |
+| `leveldown` | `~/.local/share/kitty-wallbash/node_modules/` | Node.js LevelDB bindings (npm) |
+| `hyde-version.txt` | `~/.local/share/kitty-wallbash/` | HyDE version snapshotted at install time |
+
+Also patches `~/.config/kitty/kitty.conf` and `~/.config/fastfetch/config.jsonc` as needed.
 
 ---
 
@@ -74,31 +83,19 @@ Wallpaper change → wallbash extracts colors → kitty.dcol template
 
 ## 2. Dark Reader
 
-The `darkreader.dcol` template generates a JSON file at `~/.cache/hyde/wallbash/darkreader.json` with wallpaper-derived colors, plus a `.drconf` preset file.
+The `darkreader.dcol` template generates a JSON file at `~/.cache/hyde/wallbash/darkreader.json` with wallpaper-derived colors, plus a `.drconf` preset file. The companion script `darkreader-apply.js` writes those colors directly into Brave's extension storage.
 
 ### Applying to Brave/Chrome
 
-Dark Reader stores colors inside Chromium's sandboxed extension storage (`chrome.storage.sync`), so there's no direct file-to-browser pipeline like kitty. Two options:
+#### Option A: Auto-apply via LevelDB (recommended)
 
-#### Option A: Manual import (easy)
-
-1. Open Dark Reader's popup → click the **"More"** tab → **"Dev Tools"**
-2. Under **"Color scheme"**, set:
-   - **Dark Background**: paste `darkSchemeBackgroundColor` from `~/.cache/hyde/wallbash/darkreader.json`
-   - **Dark Text**: paste `darkSchemeTextColor`
-   - **Light Background**: paste `lightSchemeBackgroundColor`
-   - **Light Text**: paste `lightSchemeTextColor`
-3. Run these steps again after each wallpaper change.
-
-#### Option B: Auto-apply via LevelDB (recommended)
-
-The install script sets up automatic Dark Reader color updates using a Node.js script that writes directly to Chromium's LevelDB storage. This works whenever Brave is not running.
+The install script sets up automatic Dark Reader color updates using a Node.js script that writes directly to Chromium's LevelDB storage.
 
 **How it works:**
 
 1. On each wallpaper change, wallbash generates `~/.cache/hyde/wallbash/darkreader.json` with the new colors
 2. The post-process script `scripts/darkreader.sh` tries to apply them via `scripts/darkreader-apply.js`
-3. If Brave is closed, colors are written directly to its extension storage — they'll be active on next launch
+3. If Brave is closed, colors are written directly to `chrome.storage.sync` — they'll be active on next launch
 4. If Brave is running, colors are saved to a preset file for manual import
 
 **To apply pending colors immediately:**
@@ -108,9 +105,25 @@ The install script sets up automatic Dark Reader color updates using a Node.js s
 node ~/.config/hyde/wallbash/scripts/darkreader-apply.js
 ```
 
-The script writes to `chrome.storage.sync` (and falls back to `chrome.storage.local`), which Dark Reader reads at startup. This is the same mechanism Chromium extensions use internally.
+**To inspect what's currently stored:**
 
-> **Note:** LevelDB doesn't support concurrent access — Brave must be closed for the auto-apply to work. The `install.sh` script installs the `leveldown` Node.js package automatically if Node.js is available.
+```sh
+node ~/.config/hyde/wallbash/scripts/darkreader-apply.js --check
+```
+
+This prints Dark Reader's version, scheme version, and all stored color values.
+
+> **Note:** LevelDB doesn't support concurrent access — Brave must be closed for the auto-apply. The `install.sh` script installs the `leveldown` Node.js package automatically if Node.js is available.
+
+#### Option B: Manual import
+
+1. Open Dark Reader's popup → click the **"More"** tab → **"Dev Tools"**
+2. Under **"Color scheme"**, set:
+   - **Dark Background**: paste `darkSchemeBackgroundColor` from `~/.cache/hyde/wallbash/darkreader.json`
+   - **Dark Text**: paste `darkSchemeTextColor`
+   - **Light Background**: paste `lightSchemeBackgroundColor`
+   - **Light Text**: paste `lightSchemeTextColor`
+3. Run these steps again after each wallpaper change.
 
 ---
 
@@ -132,11 +145,33 @@ To revert:
 cp ~/.config/fastfetch/config.jsonc.bak.* ~/.config/fastfetch/config.jsonc
 ```
 
-Or if you just want the preset file:
+Or use the standalone preset:
 
 ```sh
 fastfetch --config ./fastfetch/wallpaper-logo.jsonc
 ```
+
+---
+
+## 4. Diagnostics
+
+Two tools to verify everything is working:
+
+### Full pipeline check
+
+```sh
+bash ~/.config/hyde/wallbash/scripts/wallbash-check.sh
+```
+
+Checks: all templates installed, wallbash engine still processes `always/` files, variable naming convention matches, LevelDB health, kitty config, fastfetch logo.
+
+### Dark Reader LevelDB check
+
+```sh
+node ~/.config/hyde/wallbash/scripts/darkreader-apply.js --check
+```
+
+Prints Dark Reader version, scheme version, and all currently stored color values. Confirms all expected fields are present.
 
 ---
 
@@ -154,20 +189,38 @@ Groups 1–3 are typically darker tones; group 4 is the warmest/brightest.
 
 You can edit any `.dcol` template in `~/.config/hyde/wallbash/always/` to remap colors. See `~/.cache/hyde/wall.dcol` for your current wallpaper's extracted values.
 
+### All valid placeholders
+
+Templates support these wallbash variables (wallbash replaces them at runtime):
+
+- `<wallbash_mode>` — `light` or `dark`
+- `<wallbash_pry1>` through `<wallbash_pry4>` — primary hex colors
+- `<wallbash_txt1>` through `<wallbash_txt4>` — text hex colors
+- `<wallbash_{i}xa{1-9}>` — 36 accent hex colors (4 groups × 9 shades)
+- `_rgba(alpha)` and `_rgb` variants for all hex variables above
+- `<<HOME>>` — expands to `$HOME`
+
 ## Uninstall
 
 ```sh
-# Remove templates
+# Remove wallbash templates
 rm ~/.config/hyde/wallbash/always/kitty.dcol
 rm ~/.config/hyde/wallbash/always/darkreader.dcol
+
+# Remove scripts
 rm ~/.config/hyde/wallbash/scripts/darkreader.sh
+rm ~/.config/hyde/wallbash/scripts/darkreader-apply.js
+rm ~/.config/hyde/wallbash/scripts/wallbash-check.sh
+
+# Remove npm dependencies
+rm -rf ~/.local/share/kitty-wallbash
 
 # Restore kitty config
 # Edit ~/.config/kitty/kitty.conf and add back:
 #   include current-theme.conf
 
 # Restore fastfetch config
-cp ~/.config/fastfetch/config.jsonc.bak.* ~/.config/fastfetch/config.jsonc
+ls -t ~/.config/fastfetch/config.jsonc.bak.* | head -1 | xargs -r cp {} ~/.config/fastfetch/config.jsonc
 ```
 
 ## Credits

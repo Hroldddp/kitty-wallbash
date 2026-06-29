@@ -36,7 +36,7 @@ function checkMode() {
   if (!ldPath) {
     console.log('⚠ leveldown not installed');
     console.log('  Run: npm install leveldown --prefix ' + LIBS_DIR);
-    return 2;
+    process.exit(2);
   }
 
   const leveldown = require(ldPath);
@@ -88,7 +88,6 @@ function checkMode() {
           for (const field of COLOR_FIELDS) {
             const val = theme[field];
             if (val) {
-              const expected = field === 'selectionTextColor' ? null : null;
               console.log('  ' + field + ': ' + val);
             }
           }

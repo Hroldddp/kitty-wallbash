@@ -25,9 +25,13 @@ for arg in "$@"; do
         --help|-h)
             echo "Usage: bash install.sh [OPTIONS]"
             echo ""
+            echo "Install or update kitty-wallbash components."
+            echo ""
             echo "Options:"
             echo "  -f, --force    Reinstall npm dependencies even if already present"
             echo "  -h, --help     Show this help message"
+            echo ""
+            echo "Re-run after HyDE updates to refresh the version snapshot."
             exit 0
             ;;
     esac
@@ -55,6 +59,10 @@ check_prerequisites() {
 
     # Create scripts dir if missing (HyDE may not ship it in user config)
     mkdir -p "$HYDE_SCRIPTS_DIR"
+
+    if ! command -v node &>/dev/null; then
+        print_warn "Node.js not found - Dark Reader auto-apply will be unavailable"
+    fi
 
     if [ "$fail" -eq 1 ]; then
         exit 1
@@ -234,6 +242,16 @@ verify() {
         print_msg "  ✅ Fastfetch configured to show wallpaper"
     fi
 
+    if [ -f "$HYDE_SCRIPTS_DIR/wallbash-check.sh" ]; then
+        print_msg "  ✅ Diagnostic script installed"
+    else
+        print_warn "  ⚠️  Diagnostic script missing"
+    fi
+
+    if [ -f "$LIBS_DIR/node_modules/leveldown/package.json" ]; then
+        print_msg "  ✅ leveldown npm package installed"
+    fi
+
     if [ "$ok" -eq 1 ]; then
         exit 1
     fi
@@ -278,6 +296,7 @@ main() {
     print_msg "  • Kitty colors → auto (on wallpaper change)"
     print_msg "  • Terminal logo → always shows current wallpaper"
     print_msg "  • Dark Reader → auto-applies when Brave is closed"
+    print_msg "  • Run wallbash-check.sh to verify the pipeline"
     echo ""
 }
 

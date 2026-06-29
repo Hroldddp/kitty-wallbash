@@ -48,7 +48,7 @@ echo ""
 echo "--- Wallbash Engine ---"
 COLOR_SET="$HYDE_LIB/color.set.sh"
 if [ -f "$COLOR_SET" ]; then
-  if grep -q 'path.*always.*dcol' "$COLOR_SET" 2>/dev/null; then
+  if grep -q 'always.*\.dcol' "$COLOR_SET" 2>/dev/null; then
     pass "always/ templates are processed (color.set.sh)"
   else
     fail "always/ template processing not found in color.set.sh"
@@ -89,8 +89,11 @@ for t in kitty.dcol darkreader.dcol; do
     else
       fail "$t header missing pipe delimiter"
     fi
-    # Check it uses valid wallbash variables
-    bad=$(grep -oP '<wallbash_\w+' "$f" 2>/dev/null | sort -u | grep -vP '^(<wallbash_pry[1-4]|<wallbash_txt[1-4]|<wallbash_[1-4]xa[1-9]|<wallbash_mode)$' || true)
+    # Check it uses valid wallbash variables (strip _rgb/_rgba suffix before validating)
+    bad=$(grep -oP '<wallbash_\w+' "$f" 2>/dev/null \
+          | sed 's/_rgb\|_rgba([^)]*)//g' \
+          | sort -u \
+          | grep -vP '^(<wallbash_pry[1-4]|<wallbash_txt[1-4]|<wallbash_[1-4]xa[1-9]|<wallbash_mode)$' || true)
     if [ -n "$bad" ]; then
       warn "Unknown wallbash variables in $t: $(echo "$bad" | tr '\n' ' ')"
     else
@@ -120,10 +123,8 @@ fi
 echo ""
 echo "--- Dark Reader LevelDB ---"
 if command -v node &>/dev/null && [ -f "$HYDE_SCRIPTS_DIR/darkreader-apply.js" ]; then
-  set +e
-  DR_OUTPUT=$(node "$HYDE_SCRIPTS_DIR/darkreader-apply.js" --check 2>/dev/null)
+  DR_OUTPUT=$(node "$HYDE_SCRIPTS_DIR/darkreader-apply.js" --check 2>/dev/null) || true
   DR_EXIT=$?
-  set -e
   case $DR_EXIT in
     0)
       pass "Dark Reader LevelDB: healthy"
