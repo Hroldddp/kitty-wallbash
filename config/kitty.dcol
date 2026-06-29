@@ -1,4 +1,6 @@
 $HOME/.config/kitty/theme.conf|killall -SIGUSR1 kitty
+
+# Base
 foreground              #<wallbash_txt1>
 background              #<wallbash_pry1>
 selection_foreground    #<wallbash_pry1>
@@ -6,39 +8,40 @@ selection_background    #<wallbash_txt1>
 cursor                  #<wallbash_4xa5>
 cursor_text_color       #<wallbash_txt4>
 
+# Tabs
 active_tab_foreground     #<wallbash_pry1>
 active_tab_background     #<wallbash_txt1>
 inactive_tab_foreground   #<wallbash_txt2>
 inactive_tab_background   #<wallbash_pry1>
 
-# black
+# ANSI Black
 color0      #<wallbash_1xa1>
 color8      #<wallbash_1xa4>
 
-# red
+# ANSI Red
 color1      #<wallbash_4xa6>
 color9      #<wallbash_4xa8>
 
-# green
+# ANSI Green
 color2      #<wallbash_2xa6>
 color10     #<wallbash_2xa8>
 
-# yellow
+# ANSI Yellow
 color3      #<wallbash_3xa6>
 color11     #<wallbash_3xa8>
 
-# blue
+# ANSI Blue
 color4      #<wallbash_1xa7>
 color12     #<wallbash_1xa9>
 
-# magenta
+# ANSI Magenta
 color5      #<wallbash_2xa7>
 color13     #<wallbash_2xa9>
 
-# cyan
+# ANSI Cyan
 color6      #<wallbash_3xa7>
 color14     #<wallbash_3xa9>
 
-# white
+# ANSI White
 color7      #<wallbash_4xa6>
 color15     #<wallbash_4xa8>
