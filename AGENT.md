@@ -86,7 +86,8 @@ darkreader.dcol → ~/.cache/hyde/wallbash/darkreader.json
 3. **Root helper path validation** must check target dir is under `/usr/share/sddm/themes/` to prevent abuse.
 4. **Wallbash scripts** should fail gracefully (exit non-zero, print message) rather than hanging or prompting.
 5. **dcol templates** are processed by wallbash synchronously — slow commands delay wallpaper switching.
-6. **Candy theme.conf** non-color settings (ScreenWidth, FormPosition, Font, blur, etc.) must never be overwritten by the helper — only the 4 color/background lines.
+6. **Candy theme.conf** non-color settings (ScreenWidth, FormPosition, Font, blur, etc.) must never be overwritten by the helper — only the 5 theme lines are touched: `Background`, `BackgroundS`, `MainColor`, `AccentColor`, `BackgroundColor`.
+7. **Candy ignores `Background`** — `Main.qml:238` reads `config.BackgroundS` (slideshow list) instead. The helper must always update `BackgroundS` to only `backgrounds/wallpaper.png` or the wallpaper won't display.
 
 ## Dev Workflow
 

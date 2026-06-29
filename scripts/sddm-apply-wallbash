@@ -1,6 +1,6 @@
 #!/bin/sh
 # sddm-apply-wallbash — root helper for SDDM theming
-# Installed at /usr/local/bin/sddm-apply-wallbash via sudo by install_pst.sh
+# Installed at /usr/local/bin/sddm-apply-wallbash via sudo by install.sh
 # Only ever writes to /usr/share/sddm/themes/Candy/
 
 COLORS_SRC="$1"
@@ -29,6 +29,7 @@ cp "$WALLPAPER_SRC" "$CANDY_DIR/backgrounds/wallpaper.png"
 if [ -f "$THEME_CONF" ]; then
     sed -i \
         -e 's|^Background=.*|Background="backgrounds/wallpaper.png"|' \
+        -e 's|^BackgroundS=.*|BackgroundS="backgrounds/wallpaper.png"|' \
         -e "s|^MainColor=.*|MainColor=\"${MainColor}\"|" \
         -e "s|^AccentColor=.*|AccentColor=\"${AccentColor}\"|" \
         -e "s|^BackgroundColor=.*|BackgroundColor=\"${BackgroundColor}\"|" \
@@ -38,6 +39,7 @@ else
     cat > "$THEME_CONF" << THEME
 [General]
 Background="backgrounds/wallpaper.png"
+BackgroundS="backgrounds/wallpaper.png"
 DimBackgroundImage="0.0"
 ScaleImageCropped="true"
 FullBlur="false"

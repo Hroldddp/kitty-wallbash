@@ -178,14 +178,17 @@ Wallpaper change → wallbash extracts colors → sddm.dcol template
 
 ### Candy theme.conf — what gets updated
 
-Only these 4 lines are ever changed by the helper (all other settings like font, form position, blur radius are preserved):
+Only these 5 lines are ever changed by the helper (all other settings like font, form position, blur radius are preserved):
 
 | Setting | Source | Description |
 |---|---|---|
 | `Background` | `wall.set.png` | Lock screen wallpaper |
+| `BackgroundS` | `wall.set.png` | Slideshow list — Candy only reads this, not `Background` |
 | `MainColor` | `<wallbash_txt1>` | Text color |
 | `AccentColor` | `<wallbash_1xa5>` | Accent for inputs and highlights |
 | `BackgroundColor` | `<wallbash_pry1>` | Panel/form background |
+
+**Important:** Candy's `Main.qml` reads `BackgroundS` (the slideshow), not `Background`. The helper replaces the entire `BackgroundS` list with just your wallpaper so it always shows. See `Main.qml:238`.
 
 ### Verify
 
