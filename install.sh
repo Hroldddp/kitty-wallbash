@@ -15,6 +15,23 @@ print_err()   { printf "\033[1;31m[error]\033[0m %s\n" "$1"; }
 print_heading() { printf "\n\033[1;36m=== %s ===\033[0m\n" "$1"; }
 
 LIBS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kitty-wallbash"
+SNAPSHOT_FILE="$LIBS_DIR/hyde-version.txt"
+FORCE_REINSTALL=false
+
+# Parse args
+for arg in "$@"; do
+    case "$arg" in
+        --force|-f) FORCE_REINSTALL=true ;;
+        --help|-h)
+            echo "Usage: bash install.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  -f, --force    Reinstall npm dependencies even if already present"
+            echo "  -h, --help     Show this help message"
+            exit 0
+            ;;
+    esac
+done
 
 # ── Prerequisites ─────────────────────────────────────────
 check_prerequisites() {
@@ -43,6 +60,22 @@ check_prerequisites() {
         exit 1
     fi
     return 0
+}
+
+snapshot_hyde_version() {
+    mkdir -p "$LIBS_DIR"
+    local version_file="$HOME/.local/state/hyde/version"
+    if [ -f "$version_file" ]; then
+        local ver
+        ver=$(grep -oP "HYDE_VERSION='\K[^']+" "$version_file" 2>/dev/null || echo "unknown")
+        local branch
+        branch=$(grep -oP "HYDE_BRANCH='\K[^']+" "$version_file" 2>/dev/null || echo "unknown")
+        echo "HyDE $ver ($branch)" > "$SNAPSHOT_FILE"
+        print_msg "  HyDE version snapshotted: HyDE $ver ($branch)"
+    else
+        echo "unknown" > "$SNAPSHOT_FILE"
+        print_warn "  Could not read HyDE version"
+    fi
 }
 
 # ── Kitty: wallbash template ──────────────────────────────
@@ -111,14 +144,23 @@ install_darkreader_template() {
         print_msg "  → $dst_js"
     fi
 
+    # Copy diagnostic script
+    if [ -f "./scripts/wallbash-check.sh" ]; then
+        cp "./scripts/wallbash-check.sh" "$HYDE_SCRIPTS_DIR/wallbash-check.sh"
+        chmod +x "$HYDE_SCRIPTS_DIR/wallbash-check.sh"
+        print_msg "  → $HYDE_SCRIPTS_DIR/wallbash-check.sh"
+    fi
+
     # Install leveldown for Node.js DB access
     if command -v node &>/dev/null; then
-        if [ ! -d "$LIBS_DIR/node_modules/leveldown" ]; then
+        if [ "$FORCE_REINSTALL" = true ] || [ ! -d "$LIBS_DIR/node_modules/leveldown" ]; then
             print_msg "Installing leveldown (Node.js LevelDB bindings)..."
             mkdir -p "$LIBS_DIR"
-            npm install --prefix "$LIBS_DIR" leveldown &>/dev/null && \
-                print_msg "  leveldown installed" || \
+            if npm install --prefix "$LIBS_DIR" leveldown &>/dev/null; then
+                print_msg "  leveldown installed"
+            else
                 print_warn "  leveldown install failed - auto-apply unavailable"
+            fi
         else
             print_msg "  leveldown already installed"
         fi
@@ -206,6 +248,7 @@ main() {
 
     print_heading "Prerequisites"
     check_prerequisites
+    snapshot_hyde_version
 
     print_heading "Kitty Terminal"
     install_kitty_template
