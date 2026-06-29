@@ -1,6 +1,6 @@
 # kitty-wallbash
 
-Auto-theme your [kitty](https://sw.kovidgoyal.net/kitty/) terminal, your [Dark Reader](https://darkreader.org/) browser extension, and your terminal logo to match your wallpaper using [HyDE](https://hydeproject.pages.dev/)'s wallbash system.
+Auto-theme your [kitty](https://sw.kovidgoyal.net/kitty/) terminal, your [Dark Reader](https://darkreader.org/) browser extension, your [SDDM](https://github.com/sddm/sddm) login screen, and your terminal logo to match your wallpaper using [HyDE](https://hydeproject.pages.dev/)'s wallbash system.
 
 Every time you switch wallpapers, everything updates automatically.
 
@@ -11,6 +11,7 @@ Every time you switch wallpapers, everything updates automatically.
 | **Kitty terminal** | Background, foreground, cursor, selection, and 16 ANSI colors auto-update on wallpaper change |
 | **Dark Reader** | Wallpaper colors auto-apply via LevelDB when Brave is closed (or manually import a preset) |
 | **Terminal logo** | Fastfetch always shows your current wallpaper as the terminal splash logo |
+| **SDDM login screen** | Login screen background and accent colors match your wallpaper |
 
 ## Requirements
 
@@ -18,6 +19,7 @@ Every time you switch wallpapers, everything updates automatically.
 - [kitty](https://sw.kovidgoyal.net/kitty/) terminal emulator
 - [fastfetch](https://github.com/fastfetch-cli/fastfetch) (usually included with HyDE)
 - Hyprland (for automatic reloading on wallpaper change)
+- [SDDM](https://github.com/sddm/sddm) with [Candy theme](https://github.com/JaKooLit/JaKooLit-SDDM-Candy) at `/usr/share/sddm/themes/Candy/` (optional, for login screen)
 - Brave/Chrome with [Dark Reader](https://darkreader.org/) (optional, for browser theming)
 - Node.js 18+ (optional, for Dark Reader auto-apply)
 
@@ -38,13 +40,17 @@ Re-run `./install.sh` after updating HyDE to refresh the version snapshot. Use `
 |---|---|---|
 | `config/kitty.dcol` | `~/.config/hyde/wallbash/always/` | Wallbash template for kitty colors |
 | `config/darkreader.dcol` | `~/.config/hyde/wallbash/always/` | Wallbash template for Dark Reader colors |
+| `config/sddm.dcol` | `~/.config/hyde/wallbash/always/` | Wallbash template for SDDM login colors |
 | `scripts/darkreader.sh` | `~/.config/hyde/wallbash/scripts/` | Post-process: generates preset + calls auto-apply |
 | `scripts/darkreader-apply.js` | `~/.config/hyde/wallbash/scripts/` | Writes colors to Brave's LevelDB storage |
+| `scripts/sddm.sh` | `~/.config/hyde/wallbash/scripts/` | Stages colors + wallpaper, calls root helper via `sudo -n` |
+| `scripts/sddm-apply-wallbash` | `/usr/local/bin/` | Root helper: updates Candy theme.conf + copies wallpaper |
 | `scripts/wallbash-check.sh` | `~/.config/hyde/wallbash/scripts/` | Diagnostic: check the whole pipeline |
 | `leveldown` | `~/.local/share/kitty-wallbash/node_modules/` | Node.js LevelDB bindings (npm) |
 | `hyde-version.txt` | `~/.local/share/kitty-wallbash/` | HyDE version snapshotted at install time |
+| `/etc/sudoers.d/sddm-wallbash` | — | NOPASSWD sudo rule for `sddm-apply-wallbash` only |
 
-Also patches `~/.config/kitty/kitty.conf` and `~/.config/fastfetch/config.jsonc` as needed.
+Also patches `~/.config/kitty/kitty.conf` and `~/.config/fastfetch/config.jsonc` as needed. Installs NOPASSWD sudo rule for the SDDM helper.
 
 ---
 
@@ -153,7 +159,41 @@ fastfetch --config ./fastfetch/wallpaper-logo.jsonc
 
 ---
 
-## 4. Diagnostics
+## 4. SDDM Login Screen
+
+The `sddm.dcol` template generates color values at `~/.cache/hyde/wallbash/sddm.conf` on every wallpaper change. The companion `sddm.sh` script copies the colors + wallpaper to `/var/tmp/` and runs the root helper via `sudo -n`.
+
+**No password prompts** — `install.sh` creates a NOPASSWD sudoers rule scoped to only `/usr/local/bin/sddm-apply-wallbash`.
+
+### How it works
+
+```
+Wallpaper change → wallbash extracts colors → sddm.dcol template
+→ writes sddm.conf → sddm.sh copies files to /var/tmp/
+→ sudo -n sddm-apply-wallbash → sed-updates Candy/theme.conf
+→ copies wallpaper to backgrounds/ → SDDM picks it up on next boot
+```
+
+### Candy theme.conf — what gets updated
+
+Only these 4 lines are ever changed by the helper (all other settings like font, form position, blur radius are preserved):
+
+| Setting | Source | Description |
+|---|---|---|
+| `Background` | `wall.set.png` | Lock screen wallpaper |
+| `MainColor` | `<wallbash_txt1>` | Text color |
+| `AccentColor` | `<wallbash_1xa5>` | Accent for inputs and highlights |
+| `BackgroundColor` | `<wallbash_pry1>` | Panel/form background |
+
+### Verify
+
+```sh
+grep -E "^MainColor=|^AccentColor=|^BackgroundColor=|^Background=" /usr/share/sddm/themes/Candy/theme.conf
+```
+
+---
+
+## 5. Diagnostics
 
 Two tools to verify everything is working:
 
@@ -163,7 +203,7 @@ Two tools to verify everything is working:
 bash ~/.config/hyde/wallbash/scripts/wallbash-check.sh
 ```
 
-Checks: all templates installed, wallbash engine still processes `always/` files, variable naming convention matches, LevelDB health, kitty config, fastfetch logo.
+Checks: all templates installed, wallbash engine still processes `always/` files, variable naming convention matches, SDDM theme.conf, LevelDB health, kitty config, fastfetch logo.
 
 ### Dark Reader LevelDB check
 
@@ -175,7 +215,7 @@ Prints Dark Reader version, scheme version, and all currently stored color value
 
 ---
 
-## Wallbash variable reference
+## 6. Wallbash variable reference
 
 Wallbash extracts 4 color groups from each wallpaper. Each group has:
 
@@ -200,17 +240,23 @@ Templates support these wallbash variables (wallbash replaces them at runtime):
 - `_rgba(alpha)` and `_rgb` variants for all hex variables above
 - `<<HOME>>` — expands to `$HOME`
 
-## Uninstall
+## 7. Uninstall
 
 ```sh
 # Remove wallbash templates
 rm ~/.config/hyde/wallbash/always/kitty.dcol
 rm ~/.config/hyde/wallbash/always/darkreader.dcol
+rm ~/.config/hyde/wallbash/always/sddm.dcol
 
 # Remove scripts
 rm ~/.config/hyde/wallbash/scripts/darkreader.sh
 rm ~/.config/hyde/wallbash/scripts/darkreader-apply.js
+rm ~/.config/hyde/wallbash/scripts/sddm.sh
 rm ~/.config/hyde/wallbash/scripts/wallbash-check.sh
+
+# Remove SDDM root helper and sudoers rule
+sudo rm /usr/local/bin/sddm-apply-wallbash
+sudo rm /etc/sudoers.d/sddm-wallbash
 
 # Remove npm dependencies
 rm -rf ~/.local/share/kitty-wallbash
@@ -223,7 +269,7 @@ rm -rf ~/.local/share/kitty-wallbash
 ls -t ~/.config/fastfetch/config.jsonc.bak.* | head -1 | xargs -r cp {} ~/.config/fastfetch/config.jsonc
 ```
 
-## Credits
+## 8. Credits
 
 - [HyDE Project](https://hydeproject.pages.dev/) — the wallbash color extraction system
 - [kitty terminal](https://sw.kovidgoyal.net/kitty/) — SIGUSR1 live reload
