@@ -71,7 +71,7 @@ fi
 # ── 3. Templates ──────────────────────────────
 echo ""
 echo "--- Templates ---"
-for t in kitty.dcol darkreader.dcol; do
+for t in kitty.dcol darkreader.dcol sddm.dcol; do
   if [ -f "$HYDE_WALLBASH_ALWAYS/$t" ]; then
     pass "Template installed: $t"
   else
@@ -80,7 +80,7 @@ for t in kitty.dcol darkreader.dcol; do
 done
 
 # Validate template placeholders
-for t in kitty.dcol darkreader.dcol; do
+for t in kitty.dcol darkreader.dcol sddm.dcol; do
   f="$HYDE_WALLBASH_ALWAYS/$t"
   if [ -f "$f" ]; then
     header=$(head -1 "$f")
@@ -155,7 +155,37 @@ else
   fail "No colors file at $COLORS_FILE — change wallpaper to generate"
 fi
 
-# ── 7. Kitty config ───────────────────────────
+# ── 7. SDDM theme ────────────────────────────
+echo ""
+echo "--- SDDM Login Screen ---"
+SDDM_THEME_CONF="/usr/share/sddm/themes/Candy/theme.conf"
+if [ -f "$SDDM_THEME_CONF" ]; then
+  main_color=$(grep -oP '^MainColor="\K[^"]+' "$SDDM_THEME_CONF" 2>/dev/null)
+  accent_color=$(grep -oP '^AccentColor="\K[^"]+' "$SDDM_THEME_CONF" 2>/dev/null)
+  bg_color=$(grep -oP '^BackgroundColor="\K[^"]+' "$SDDM_THEME_CONF" 2>/dev/null)
+  if [ -n "$main_color" ] && [ -n "$accent_color" ] && [ -n "$bg_color" ]; then
+    pass "SDDM Candy theme has valid colors"
+    echo "  Main: $main_color  Accent: $accent_color  BG: $bg_color"
+  else
+    fail "SDDM theme.conf missing expected color keys"
+  fi
+  SDDM_BG="/usr/share/sddm/themes/Candy/backgrounds/wallpaper.png"
+  if [ -f "$SDDM_BG" ]; then
+    pass "SDDM wallpaper exists"
+  else
+    warn "SDDM wallpaper missing"
+  fi
+else
+  warn "SDDM Candy theme not found at $SDDM_THEME_CONF"
+fi
+
+if [ -x "/usr/local/bin/sddm-apply-wallbash" ]; then
+  pass "SDDM root helper installed"
+else
+  warn "SDDM root helper not installed"
+fi
+
+# ── 8. Kitty config ───────────────────────────
 echo ""
 echo "--- Kitty ---"
 if [ -f "$KITTY_CONF" ]; then
@@ -182,7 +212,7 @@ else
   warn "Kitty theme.conf not generated yet (change wallpaper)"
 fi
 
-# ── 8. Fastfetch logo ─────────────────────────
+# ── 9. Fastfetch logo ─────────────────────────
 echo ""
 echo "--- Fastfetch Logo ---"
 if [ -f "$FASTFETCH_CONF" ]; then
