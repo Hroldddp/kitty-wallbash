@@ -5,8 +5,10 @@
 
 COLORS_SRC="$1"
 WALLPAPER_SRC="$2"
+WALLPAPER_NAME="${3:-wallpaper}"
 CANDY_DIR="/usr/share/sddm/themes/Candy"
 THEME_CONF="$CANDY_DIR/theme.conf"
+WALLPAPER_DST="$CANDY_DIR/backgrounds/$WALLPAPER_NAME"
 
 # Path validation: prevent misuse via symlink or path traversal
 case "$CANDY_DIR" in
@@ -22,24 +24,26 @@ esac
 # Read the wallbash-generated colors
 . "$COLORS_SRC"
 
-# Copy wallpaper to SDDM theme backgrounds
-cp "$WALLPAPER_SRC" "$CANDY_DIR/backgrounds/wallpaper.png"
+# Clean up any stale hardcoded wallpaper.png from previous versions
+rm -f "$CANDY_DIR/backgrounds/wallpaper.png"
+
+# Copy wallpaper to SDDM theme backgrounds using original filename
+cp "$WALLPAPER_SRC" "$WALLPAPER_DST"
 
 # Update theme.conf — preserve all user settings, only override colors and background
 if [ -f "$THEME_CONF" ]; then
     sed -i \
-        -e 's|^Background=.*|Background="backgrounds/wallpaper.png"|' \
-        -e 's|^BackgroundS=.*|BackgroundS="backgrounds/wallpaper.png"|' \
+        -e "s|^Background=.*|Background=\"backgrounds/$WALLPAPER_NAME\"|" \
+        -e "s|^BackgroundS=.*|BackgroundS=\"backgrounds/$WALLPAPER_NAME\"|" \
         -e "s|^MainColor=.*|MainColor=\"${MainColor}\"|" \
         -e "s|^AccentColor=.*|AccentColor=\"${AccentColor}\"|" \
         -e "s|^BackgroundColor=.*|BackgroundColor=\"${BackgroundColor}\"|" \
         "$THEME_CONF"
 else
-    # Create theme.conf from scratch if it doesn't exist
     cat > "$THEME_CONF" << THEME
 [General]
-Background="backgrounds/wallpaper.png"
-BackgroundS="backgrounds/wallpaper.png"
+Background="backgrounds/$WALLPAPER_NAME"
+BackgroundS="backgrounds/$WALLPAPER_NAME"
 DimBackgroundImage="0.0"
 ScaleImageCropped="true"
 FullBlur="false"
@@ -84,4 +88,4 @@ TranslateVirtualKeyboardButton=""
 THEME
 fi
 
-chmod 644 "$THEME_CONF" "$CANDY_DIR/backgrounds/wallpaper.png"
+chmod 644 "$THEME_CONF" "$WALLPAPER_DST"

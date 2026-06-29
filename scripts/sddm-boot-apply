@@ -1,0 +1,38 @@
+#!/bin/bash
+# sddm-boot-apply — applies current wallpaper to SDDM at boot (runs as root)
+# Called by sddm-wallpaper-boot.service before SDDM starts
+
+USER_HOME="/home/hroldddp"
+CANDY_DIR="/usr/share/sddm/themes/Candy"
+WALL_SYM="$USER_HOME/.cache/hyde/wall.set"
+WALLPAPER_SRC="$USER_HOME/.cache/hyde/wall.set.png"
+WALL_DCOL="$USER_HOME/.cache/hyde/wall.dcol"
+THEME_CONF="$CANDY_DIR/theme.conf"
+
+[ -f "$WALLPAPER_SRC" ] || exit 0
+[ -f "$WALL_DCOL" ] || exit 0
+[ -d "$CANDY_DIR" ] || exit 0
+
+. "$WALL_DCOL"
+MainColor="#${dcol_txt1:-FFFFFF}"
+AccentColor="#${dcol_1xa5:-6580A3}"
+BackgroundColor="#${dcol_pry1:-132B4B}"
+
+WALL_NAME=$(basename "$(readlink -f "$WALL_SYM" 2>/dev/null)" 2>/dev/null || echo "wallpaper")
+
+mkdir -p "$CANDY_DIR/backgrounds"
+# Clean up any stale hardcoded wallpaper.png from previous versions
+rm -f "$CANDY_DIR/backgrounds/wallpaper.png"
+cp "$WALLPAPER_SRC" "$CANDY_DIR/backgrounds/$WALL_NAME"
+
+if [ -f "$THEME_CONF" ]; then
+    sed -i \
+        -e "s|^Background=.*|Background=\"backgrounds/$WALL_NAME\"|" \
+        -e "s|^BackgroundS=.*|BackgroundS=\"backgrounds/$WALL_NAME\"|" \
+        -e "s|^MainColor=.*|MainColor=\"$MainColor\"|" \
+        -e "s|^AccentColor=.*|AccentColor=\"$AccentColor\"|" \
+        -e "s|^BackgroundColor=.*|BackgroundColor=\"$BackgroundColor\"|" \
+        "$THEME_CONF"
+fi
+
+chmod 644 "$THEME_CONF" "$CANDY_DIR/backgrounds/$WALL_NAME" 2>/dev/null

@@ -169,11 +169,12 @@ if [ -f "$SDDM_THEME_CONF" ]; then
   else
     fail "SDDM theme.conf missing expected color keys"
   fi
-  SDDM_BG="/usr/share/sddm/themes/Candy/backgrounds/wallpaper.png"
-  if [ -f "$SDDM_BG" ]; then
-    pass "SDDM wallpaper exists"
+  # Check that Background/BackgroundS point to an existing file
+  sddm_bg_path=$(grep -oP '^Background="\K[^"]+' "$SDDM_THEME_CONF" 2>/dev/null)
+  if [ -n "$sddm_bg_path" ] && [ -f "/usr/share/sddm/themes/Candy/$sddm_bg_path" ]; then
+    pass "SDDM wallpaper file exists ($sddm_bg_path)"
   else
-    warn "SDDM wallpaper missing"
+    warn "SDDM wallpaper file missing or theme.conf points to nonexistent file"
   fi
 else
   warn "SDDM Candy theme not found at $SDDM_THEME_CONF"

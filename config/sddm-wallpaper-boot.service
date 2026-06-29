@@ -1,0 +1,13 @@
+[Unit]
+Description=Apply current HyDE wallpaper to SDDM before login screen
+Documentation=https://github.com/Hroldddp/kitty-wallbash
+Before=sddm.service
+After=local-fs.target home.mount
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/sddm-boot-apply
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

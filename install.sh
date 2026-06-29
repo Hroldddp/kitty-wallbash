@@ -18,6 +18,8 @@ print_skip()  { printf "\033[1;33m  ⚠️\033[0m %s\n" "$1"; }
 print_action(){ printf "\033[1;36m  →\033[0m %s\n" "$1"; }
 
 SDDM_HELPER="/usr/local/bin/sddm-apply-wallbash"
+SDDM_BOOT_SCRIPT="/usr/local/bin/sddm-boot-apply"
+SDDM_BOOT_SERVICE="/etc/systemd/system/sddm-wallpaper-boot.service"
 SDDM_SUDOERS="/etc/sudoers.d/sddm-wallbash"
 HYPR_USERPREFS="$CONFIG_DIR/hypr/userprefs.conf"
 SDDM_EXEC_ONCE_LINE="# wallbash SDDM"
@@ -214,7 +216,7 @@ install_sddm() {
         print_ok "Script  → $dst_sh"
     fi
 
-    # Install root helper + NOPASSWD sudo rule
+    # Install root helper + boot script + NOPASSWD sudo rule
     if [ ! -f "$SDDM_HELPER" ]; then
         print_msg "Installing root helper..."
         if sudo install -m 755 "$src_helper" "$SDDM_HELPER"; then
@@ -224,6 +226,36 @@ install_sddm() {
         fi
     else
         print_ok "Helper already installed at $SDDM_HELPER"
+    fi
+
+    if [ ! -f "$SDDM_BOOT_SCRIPT" ]; then
+        print_msg "Installing boot-time apply script..."
+        if sudo install -m 755 "./scripts/sddm-boot-apply" "$SDDM_BOOT_SCRIPT"; then
+            print_ok "Boot script  → $SDDM_BOOT_SCRIPT"
+        else
+            print_err "Boot script install failed"
+        fi
+    else
+        print_ok "Boot script already installed"
+    fi
+
+    # Install boot-time systemd service (runs before SDDM at startup)
+    if [ ! -f "$SDDM_BOOT_SERVICE" ]; then
+        print_msg "Installing boot-time systemd service..."
+        if sudo install -m 644 "./config/sddm-wallpaper-boot.service" "$SDDM_BOOT_SERVICE"; then
+            sudo systemctl daemon-reload
+            sudo systemctl enable sddm-wallpaper-boot.service
+            print_ok "Boot service installed and enabled (runs before SDDM)"
+        else
+            print_err "Boot service install failed"
+        fi
+    else
+        if ! systemctl is-enabled sddm-wallpaper-boot.service &>/dev/null; then
+            sudo systemctl enable sddm-wallpaper-boot.service
+            print_ok "Boot service enabled"
+        else
+            print_ok "Boot service already enabled"
+        fi
     fi
 
     if [ ! -f "$SDDM_SUDOERS" ]; then
@@ -365,6 +397,12 @@ verify() {
         print_skip "SDDM systemd path watcher not enabled"
     fi
 
+    if systemctl is-enabled sddm-wallpaper-boot.service &>/dev/null; then
+        print_ok "SDDM boot service enabled (runs before SDDM)"
+    else
+        print_skip "SDDM boot service not enabled"
+    fi
+
     if [ -f "$KITTY_CONF" ] && ! grep -q "current-theme.conf" "$KITTY_CONF" 2>/dev/null; then
         print_ok "Kitty config patched (no static theme override)"
     fi
@@ -431,7 +469,7 @@ main() {
     print_msg "  • Terminal logo → always shows current wallpaper"
     print_msg "  • Dark Reader → auto-applies when Brave is closed"
     print_msg "  • SDDM login screen → matches your wallpaper colors"
-    print_msg "  • SDDM triggers: Hyprland login + systemd path watcher + wallbash"
+    print_msg "  • SDDM triggers: boot service (before login) + Hyprland login + systemd path watcher + wallbash"
     print_msg "  • Run wallbash-check.sh to verify the pipeline"
     echo ""
 }
