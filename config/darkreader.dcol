@@ -1,0 +1,35 @@
+${cacheDir}/wallbash/darkreader.json|${WALLBASH_SCRIPTS}/darkreader.sh
+{
+  "darkreader": {
+    "version": 1,
+    "wallpaper": "<wallbash_pry1>",
+    "colors": {
+      "darkSchemeBackgroundColor": "#<wallbash_pry1>",
+      "darkSchemeTextColor": "#<wallbash_txt1>",
+      "lightSchemeBackgroundColor": "#<wallbash_txt1>",
+      "lightSchemeTextColor": "#<wallbash_pry1>",
+      "scrollbarColor": "#<wallbash_4xa5>",
+      "selectionColor": "#<wallbash_4xa5>",
+      "selectionTextColor": "#<wallbash_txt4>",
+      "accentColor": "#<wallbash_1xa6>"
+    },
+    "ansiColors": {
+      "color0": "#<wallbash_1xa1>",
+      "color8": "#<wallbash_1xa4>",
+      "color1": "#<wallbash_4xa6>",
+      "color9": "#<wallbash_4xa8>",
+      "color2": "#<wallbash_2xa6>",
+      "color10": "#<wallbash_2xa8>",
+      "color3": "#<wallbash_3xa6>",
+      "color11": "#<wallbash_3xa8>",
+      "color4": "#<wallbash_1xa7>",
+      "color12": "#<wallbash_1xa9>",
+      "color5": "#<wallbash_2xa7>",
+      "color13": "#<wallbash_2xa9>",
+      "color6": "#<wallbash_3xa7>",
+      "color14": "#<wallbash_3xa9>",
+      "color7": "#<wallbash_4xa6>",
+      "color15": "#<wallbash_4xa8>"
+    }
+  }
+}
