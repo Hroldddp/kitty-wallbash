@@ -352,8 +352,8 @@ verify() {
 # ── Main ──────────────────────────────────────────────────
 main() {
     echo "=============================================="
-    echo "  Kitty + Dark Reader + SDDM + Fastfetch"
-    echo "  Auto-theme your terminal, browser & login"
+    echo "  Kitty + Dark Reader + SDDM + Fastfetch Wallbash"
+    echo "  Auto-theme your terminal, browser, login screen"
     echo "=============================================="
 
     print_heading "Prerequisites"
