@@ -212,7 +212,21 @@ else
   warn "Kitty theme.conf not generated yet (change wallpaper)"
 fi
 
-# ── 9. Fastfetch logo ─────────────────────────
+# ── 9. SDDM systemd watcher ────────────────────
+echo ""
+echo "--- SDDM Systemd Watcher ---"
+if systemctl --user is-enabled sddm-watch.path &>/dev/null; then
+  pass "SDDM path watcher enabled"
+else
+  warn "SDDM path watcher not enabled (re-run install.sh)"
+fi
+if systemctl --user is-active sddm-watch.path &>/dev/null; then
+  pass "SDDM path watcher active"
+else
+  warn "SDDM path watcher not active (re-run install.sh or start manually)"
+fi
+
+# ── 10. Fastfetch logo ─────────────────────────
 echo ""
 echo "--- Fastfetch Logo ---"
 if [ -f "$FASTFETCH_CONF" ]; then

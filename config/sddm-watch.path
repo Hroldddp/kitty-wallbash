@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch HyDE wallpaper symlink for changes → update SDDM theme
+Documentation=https://github.com/Hroldddp/kitty-wallbash
+
+[Path]
+PathChanged=%h/.cache/hyde/wall.set
+Unit=sddm-watch.service
+
+[Install]
+WantedBy=default.target

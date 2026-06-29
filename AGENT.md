@@ -43,21 +43,42 @@ HyDE's `fn_wallbash` (in `color.set.sh`) processes every `.dcol` in `~/.config/h
 
 ### SDDM Architecture
 
+3 independent trigger mechanisms (no single point of failure):
+
 ```
-sddm.dcol → ~/.cache/hyde/wallbash/sddm.conf
-         → sddm.sh (user mode)
-              → copies sddm.conf + wall.set.png to /var/tmp/
-              → sudo -n /usr/local/bin/sddm-apply-wallbash <colors> <wallpaper>
-                   → sed-updates /usr/share/sddm/themes/Candy/theme.conf
-                   → copies wallpaper to backgrounds/
+Mechanism 1 — systemd path watcher (reacts to EVERY wallpaper/theme change):
+  ~/.cache/hyde/wall.set changed (inotify)
+  → sddm-watch.path fires sddm-watch.service
+  → sddm.sh → sudo -n helper → updates Candy theme
+
+Mechanism 2 — Hyprland startup hook:
+  Hyprland starts → exec-once in ~/.config/hypr/userprefs.conf
+  → sddm.sh → sudo -n helper
+
+Mechanism 3 — wallbash dcol pipeline (passive fallback):
+  color.set.sh processes always/*.dcol
+  → sddm.dcol writes sddm.conf to cache (output only, no command)
+```
+
+`sddm.sh` is self-contained — it reads `wall.dcol` directly and generates colors itself. It does NOT depend on the dcol template output.
+
+Helper flow:
+```
+sddm.sh (user mode)
+  → reads wall.dcol + wall.set.png directly
+  → generates sddm-colors.conf in /var/tmp/
+  → sudo -n /usr/local/bin/sddm-apply-wallbash <colors> <wallpaper>
+       → sed-updates Candy/theme.conf (Background + BackgroundS + 3 colors)
+       → copies wallpaper to backgrounds/
 ```
 
 Key design decisions:
-- **User script** (`sddm.sh`) runs as `$USER`, copies files to world-readable `/var/tmp/`
-- **Root helper** (`sddm-apply-wallbash`) does the privileged writes, validates target path is under `/usr/share/sddm/themes/*`
-- **NOPASSWD sudoers rule** created by `install.sh` at `/etc/sudoers.d/sddm-wallbash`, scoped to only the helper binary
-- **`sudo -n`** (non-interactive) — never prompts, never triggers pam_faillock in headless execution
-- **Startup hook** — `install.sh` adds `exec-once = bash .../sddm.sh` to `~/.config/hypr/userprefs.conf` so SDDM colors update on every Hyprland login
+- **`sddm.sh`** reads `wall.dcol` directly — always gets the current wallpaper colors regardless of dcol template state
+- **Root helper** validates target path is under `/usr/share/sddm/themes/*` to prevent abuse
+- **NOPASSWD sudoers rule** scoped to exactly one binary path
+- **`sudo -n`** (non-interactive) — never prompts, never triggers pam_faillock
+- **Candy ignores `Background`** — it reads `BackgroundS` (slideshow). Helper sets BOTH.
+- **systemd path unit** uses `PathChanged=` on `%h/.cache/hyde/wall.set` — fires on every symlink change
 
 ### Dark Reader Architecture
 

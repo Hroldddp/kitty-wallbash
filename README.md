@@ -44,8 +44,10 @@ Re-run `./install.sh` after updating HyDE to refresh the version snapshot. Use `
 | `scripts/darkreader.sh` | `~/.config/hyde/wallbash/scripts/` | Post-process: generates preset + calls auto-apply |
 | `scripts/darkreader-apply.js` | `~/.config/hyde/wallbash/scripts/` | Writes colors to Brave's LevelDB storage |
 | `scripts/sddm.sh` | `~/.config/hyde/wallbash/scripts/` | Stages colors + wallpaper, calls root helper via `sudo -n` |
-| `scripts/sddm-apply-wallbash` | `/usr/local/bin/` | Root helper: updates Candy theme.conf + copies wallpaper |
+| `scripts/sddm-apply-wallbash` | `/usr/local/bin/` | Root helper: updates Candy theme.conf (Background+BackgroundS) + copies wallpaper |
 | `scripts/wallbash-check.sh` | `~/.config/hyde/wallbash/scripts/` | Diagnostic: check the whole pipeline |
+| `config/sddm-watch.path` | `~/.config/systemd/user/` | Systemd path watcher: triggers sddm.sh on every wallpaper/theme change |
+| `config/sddm-watch.service` | `~/.config/systemd/user/` | Systemd oneshot service called by the path watcher |
 | `leveldown` | `~/.local/share/kitty-wallbash/node_modules/` | Node.js LevelDB bindings (npm) |
 | `hyde-version.txt` | `~/.local/share/kitty-wallbash/` | HyDE version snapshotted at install time |
 | `/etc/sudoers.d/sddm-wallbash` | — | NOPASSWD sudo rule for `sddm-apply-wallbash` only |
@@ -165,16 +167,26 @@ The `sddm.dcol` template generates color values at `~/.cache/hyde/wallbash/sddm.
 
 **No password prompts** — `install.sh` creates a NOPASSWD sudoers rule scoped to only `/usr/local/bin/sddm-apply-wallbash`.
 
-**Applies on every login** — `install.sh` adds an `exec-once` to `~/.config/hypr/userprefs.conf` so `sddm.sh` runs on every Hyprland startup. This ensures the SDDM theme always reflects the wallpaper that was active when you last logged in.
+**Applies on every login** — `install.sh` adds an `exec-once` to `~/.config/hypr/userprefs.conf` so `sddm.sh` runs on every Hyprland startup.
 
-### How it works
+**Triggers on every wallpaper/theme change** — a systemd `path` unit watches `~/.cache/hyde/wall.set` and fires `sddm.sh` the instant the wallpaper changes. Combined with the Hyprland login hook and the wallbash dcol pipeline, there are **3 independent trigger mechanisms** — no single failure point.
+
+### How it works (3 independent trigger mechanisms)
 
 ```
-Wallpaper change → wallbash extracts colors → sddm.dcol template
-→ writes sddm.conf → sddm.sh copies files to /var/tmp/
-→ sudo -n sddm-apply-wallbash → sed-updates Candy/theme.conf
-→ copies wallpaper to backgrounds/ → SDDM picks it up on next boot
+Mechanism 1 — systemd path watcher (reacts to EVERY wallpaper/theme change):
+  ~/.cache/hyde/wall.set changes → sddm-watch.path fires
+  → sddm-watch.service → sddm.sh → sudo -n helper → Candy theme updated
+
+Mechanism 2 — Hyprland startup hook (catches missed updates after login):
+  Hyprland starts → exec-once in userprefs.conf → sddm.sh → helper
+
+Mechanism 3 — wallbash dcol pipeline (passive fallback):
+  wallpaper.sh → color.set.sh processes always/*.dcol
+  → sddm.dcol writes sddm.conf → (no command, passive)
 ```
+
+`sddm.sh` is fully self-contained — it reads `wall.dcol` directly for colors and calls the helper. It does not depend on the dcol template output.
 
 ### Candy theme.conf — what gets updated
 
@@ -193,7 +205,8 @@ Only these 5 lines are ever changed by the helper (all other settings like font,
 ### Verify
 
 ```sh
-grep -E "^MainColor=|^AccentColor=|^BackgroundColor=|^Background=" /usr/share/sddm/themes/Candy/theme.conf
+grep -E "^BackgroundS=|^MainColor=|^AccentColor=|^BackgroundColor=|^Background=" /usr/share/sddm/themes/Candy/theme.conf
+systemctl --user status sddm-watch.path
 ```
 
 ---
@@ -259,7 +272,9 @@ rm ~/.config/hyde/wallbash/scripts/darkreader-apply.js
 rm ~/.config/hyde/wallbash/scripts/sddm.sh
 rm ~/.config/hyde/wallbash/scripts/wallbash-check.sh
 
-# Remove SDDM root helper, sudoers rule, and startup hook
+# Remove SDDM root helper, sudoers rule, startup hook, and systemd watcher
+systemctl --user disable --now sddm-watch.path sddm-watch.service 2>/dev/null
+rm ~/.config/systemd/user/sddm-watch.path ~/.config/systemd/user/sddm-watch.service
 sudo rm /usr/local/bin/sddm-apply-wallbash
 sudo rm /etc/sudoers.d/sddm-wallbash
 sed -i '/^# wallbash SDDM$/,+1d' ~/.config/hypr/userprefs.conf

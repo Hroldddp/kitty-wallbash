@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply current wallpaper colors to SDDM login screen
+Documentation=https://github.com/Hroldddp/kitty-wallbash
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/hyde/wallbash/scripts/sddm.sh
+Nice=19
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target
