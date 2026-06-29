@@ -9,7 +9,7 @@ Every time you switch wallpapers, everything updates automatically.
 | Feature | Description |
 |---|---|
 | **Kitty terminal** | Background, foreground, cursor, selection, and 16 ANSI colors auto-update on wallpaper change |
-| **Dark Reader** | Wallpaper colors are generated as a Dark Reader preset — apply manually or automate via LevelDB injection |
+| **Dark Reader** | Wallpaper colors auto-apply via LevelDB when Brave is closed (or manually import a preset) |
 | **Terminal logo** | Fastfetch always shows your current wallpaper as the terminal splash logo |
 
 ## Requirements
@@ -90,19 +90,27 @@ Dark Reader stores colors inside Chromium's sandboxed extension storage (`chrome
    - **Light Text**: paste `lightSchemeTextColor`
 3. Run these steps again after each wallpaper change.
 
-#### Option B: LevelDB automation (advanced)
+#### Option B: Auto-apply via LevelDB (recommended)
 
-If you have `plyvel` installed and Brave is closed:
+The install script sets up automatic Dark Reader color updates using a Node.js script that writes directly to Chromium's LevelDB storage. This works whenever Brave is not running.
+
+**How it works:**
+
+1. On each wallpaper change, wallbash generates `~/.cache/hyde/wallbash/darkreader.json` with the new colors
+2. The post-process script `scripts/darkreader.sh` tries to apply them via `scripts/darkreader-apply.js`
+3. If Brave is closed, colors are written directly to its extension storage — they'll be active on next launch
+4. If Brave is running, colors are saved to a preset file for manual import
+
+**To apply pending colors immediately:**
 
 ```sh
-# Install plyvel
-pip install plyvel
-
-# Write Dark Reader settings from the last wallpaper change
-python3 scripts/darkreader.py
+# Close Brave first, then:
+node ~/.config/hyde/wallbash/scripts/darkreader-apply.js
 ```
 
-This writes directly to Chromium's `Local Extension Settings` LevelDB database. Brave must not be running. A future update may include a companion Chrome extension with native messaging for live updates.
+The script writes to `chrome.storage.sync` (and falls back to `chrome.storage.local`), which Dark Reader reads at startup. This is the same mechanism Chromium extensions use internally.
+
+> **Note:** LevelDB doesn't support concurrent access — Brave must be closed for the auto-apply to work. The `install.sh` script installs the `leveldown` Node.js package automatically if Node.js is available.
 
 ---
 

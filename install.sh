@@ -14,6 +14,8 @@ print_warn()  { printf "\033[1;33m[warning]\033[0m %s\n" "$1"; }
 print_err()   { printf "\033[1;31m[error]\033[0m %s\n" "$1"; }
 print_heading() { printf "\n\033[1;36m=== %s ===\033[0m\n" "$1"; }
 
+LIBS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kitty-wallbash"
+
 # ── Prerequisites ─────────────────────────────────────────
 check_prerequisites() {
     local fail=0
@@ -85,24 +87,47 @@ apply_kitty_theme() {
 
 # ── Dark Reader: wallbash template ────────────────────────
 install_darkreader_template() {
-    local src="./config/darkreader.dcol"
+    local src_dcol="./config/darkreader.dcol"
     local dst_dcol="$HYDE_WALLBASH_DIR/darkreader.dcol"
     local dst_sh="$HYDE_SCRIPTS_DIR/darkreader.sh"
+    local src_js="./scripts/darkreader-apply.js"
+    local dst_js="$HYDE_SCRIPTS_DIR/darkreader-apply.js"
 
     print_msg "Installing Dark Reader wallbash template..."
-    cp "$src" "$dst_dcol"
+    cp "$src_dcol" "$dst_dcol"
+    print_msg "  → $dst_dcol"
 
-    # Copy the companion script
+    # Copy the shell companion script
     if [ -f "./scripts/darkreader.sh" ]; then
         cp "./scripts/darkreader.sh" "$dst_sh"
         chmod +x "$dst_sh"
+        print_msg "  → $dst_sh"
     fi
 
-    print_msg "  → $dst_dcol"
-    print_msg "  → $dst_sh"
-    print_warn "  Dark Reader colors are generated on every wallpaper change,"
-    print_warn "  but auto-applying them requires browser integration."
-    print_warn "  See README.md for manual import instructions."
+    # Copy the Node.js LevelDB apply script
+    if [ -f "$src_js" ]; then
+        cp "$src_js" "$dst_js"
+        chmod +x "$dst_js"
+        print_msg "  → $dst_js"
+    fi
+
+    # Install leveldown for Node.js DB access
+    if command -v node &>/dev/null; then
+        if [ ! -d "$LIBS_DIR/node_modules/leveldown" ]; then
+            print_msg "Installing leveldown (Node.js LevelDB bindings)..."
+            mkdir -p "$LIBS_DIR"
+            npm install --prefix "$LIBS_DIR" leveldown &>/dev/null && \
+                print_msg "  leveldown installed" || \
+                print_warn "  leveldown install failed - auto-apply unavailable"
+        else
+            print_msg "  leveldown already installed"
+        fi
+    else
+        print_warn "  Node.js not found - auto-apply unavailable"
+    fi
+
+    print_warn "  Dark Reader auto-apply works when Brave is closed."
+    print_warn "  Close Brave to apply, or import the preset manually."
 }
 
 # ── Fastfetch: wallpaper as terminal logo ─────────────────
@@ -195,13 +220,21 @@ main() {
     print_heading "Applying"
     apply_kitty_theme
 
+    # Apply Dark Reader if Brave is closed
+    if command -v node &>/dev/null && [ -f "$HYDE_SCRIPTS_DIR/darkreader-apply.js" ]; then
+        print_msg "Attempting Dark Reader apply..."
+        node "$HYDE_SCRIPTS_DIR/darkreader-apply.js" 2>/dev/null && \
+            print_msg "  Dark Reader colors applied" || \
+            print_warn "  Dark Reader not applied (Brave may be running - close & retry)"
+    fi
+
     verify
 
     echo ""
     print_msg "All done! Change your wallpaper to see everything update."
     print_msg "  • Kitty colors → auto (on wallpaper change)"
     print_msg "  • Terminal logo → always shows current wallpaper"
-    print_msg "  • Dark Reader → colors generated, see README for import"
+    print_msg "  • Dark Reader → auto-applies when Brave is closed"
     echo ""
 }
 
