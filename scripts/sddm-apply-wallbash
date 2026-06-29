@@ -1,0 +1,85 @@
+#!/bin/sh
+# sddm-apply-wallbash — root helper for SDDM theming
+# Installed at /usr/local/bin/sddm-apply-wallbash via sudo by install_pst.sh
+# Only ever writes to /usr/share/sddm/themes/Candy/
+
+COLORS_SRC="$1"
+WALLPAPER_SRC="$2"
+CANDY_DIR="/usr/share/sddm/themes/Candy"
+THEME_CONF="$CANDY_DIR/theme.conf"
+
+# Path validation: prevent misuse via symlink or path traversal
+case "$CANDY_DIR" in
+    /usr/share/sddm/themes/*) ;;
+    *) echo "[sddm-apply] Refusing to write outside sddm themes"; exit 1 ;;
+esac
+
+[ -f "$COLORS_SRC" ] || { echo "[sddm-apply] No colors at $COLORS_SRC"; exit 1; }
+[ -f "$WALLPAPER_SRC" ] || { echo "[sddm-apply] No wallpaper at $WALLPAPER_SRC"; exit 1; }
+[ -d "$CANDY_DIR" ] || { echo "[sddm-apply] SDDM theme dir $CANDY_DIR not found"; exit 1; }
+[ -d "$CANDY_DIR/backgrounds" ] || mkdir -p "$CANDY_DIR/backgrounds"
+
+# Read the wallbash-generated colors
+. "$COLORS_SRC"
+
+# Copy wallpaper to SDDM theme backgrounds
+cp "$WALLPAPER_SRC" "$CANDY_DIR/backgrounds/wallpaper.png"
+
+# Update theme.conf — preserve all user settings, only override colors and background
+if [ -f "$THEME_CONF" ]; then
+    sed -i \
+        -e 's|^Background=.*|Background="backgrounds/wallpaper.png"|' \
+        -e "s|^MainColor=.*|MainColor=\"${MainColor}\"|" \
+        -e "s|^AccentColor=.*|AccentColor=\"${AccentColor}\"|" \
+        -e "s|^BackgroundColor=.*|BackgroundColor=\"${BackgroundColor}\"|" \
+        "$THEME_CONF"
+else
+    # Create theme.conf from scratch if it doesn't exist
+    cat > "$THEME_CONF" << THEME
+[General]
+Background="backgrounds/wallpaper.png"
+DimBackgroundImage="0.0"
+ScaleImageCropped="true"
+FullBlur="false"
+PartialBlur="true"
+BlurRadius="30"
+HaveFormBackground="true"
+FormPosition="left"
+MainColor="${MainColor}"
+AccentColor="${AccentColor}"
+BackgroundColor="${BackgroundColor}"
+OverrideLoginButtonTextColor=""
+InterfaceShadowSize="6"
+InterfaceShadowOpacity="0.6"
+RoundCorners="20"
+ScreenPadding="0"
+Font="Noto Sans"
+FontSize=""
+ForceRightToLeft="false"
+ForceLastUser="true"
+ForcePasswordFocus="true"
+ForceHideCompletePassword="false"
+ForceHideVirtualKeyboardButton="false"
+ForceHideSystemButtons="false"
+AllowEmptyPassword="false"
+AllowBadUsernames="false"
+Locale=""
+HourFormat="hh:mm A"
+DateFormat="dddd, d of MMMM"
+HeaderText=""
+TranslatePlaceholderUsername=""
+TranslatePlaceholderPassword=""
+TranslateShowPassword=""
+TranslateLogin=""
+TranslateLoginFailedWarning=""
+TranslateCapslockWarning=""
+TranslateSession=""
+TranslateSuspend=""
+TranslateHibernate=""
+TranslateReboot=""
+TranslateShutdown=""
+TranslateVirtualKeyboardButton=""
+THEME
+fi
+
+chmod 644 "$THEME_CONF" "$CANDY_DIR/backgrounds/wallpaper.png"
