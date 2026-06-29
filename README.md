@@ -165,6 +165,8 @@ The `sddm.dcol` template generates color values at `~/.cache/hyde/wallbash/sddm.
 
 **No password prompts** — `install.sh` creates a NOPASSWD sudoers rule scoped to only `/usr/local/bin/sddm-apply-wallbash`.
 
+**Applies on every login** — `install.sh` adds an `exec-once` to `~/.config/hypr/userprefs.conf` so `sddm.sh` runs on every Hyprland startup. This ensures the SDDM theme always reflects the wallpaper that was active when you last logged in.
+
 ### How it works
 
 ```
@@ -254,9 +256,10 @@ rm ~/.config/hyde/wallbash/scripts/darkreader-apply.js
 rm ~/.config/hyde/wallbash/scripts/sddm.sh
 rm ~/.config/hyde/wallbash/scripts/wallbash-check.sh
 
-# Remove SDDM root helper and sudoers rule
+# Remove SDDM root helper, sudoers rule, and startup hook
 sudo rm /usr/local/bin/sddm-apply-wallbash
 sudo rm /etc/sudoers.d/sddm-wallbash
+sed -i '/^# wallbash SDDM$/,+1d' ~/.config/hypr/userprefs.conf
 
 # Remove npm dependencies
 rm -rf ~/.local/share/kitty-wallbash

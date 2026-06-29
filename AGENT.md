@@ -57,6 +57,7 @@ Key design decisions:
 - **Root helper** (`sddm-apply-wallbash`) does the privileged writes, validates target path is under `/usr/share/sddm/themes/*`
 - **NOPASSWD sudoers rule** created by `install.sh` at `/etc/sudoers.d/sddm-wallbash`, scoped to only the helper binary
 - **`sudo -n`** (non-interactive) — never prompts, never triggers pam_faillock in headless execution
+- **Startup hook** — `install.sh` adds `exec-once = bash .../sddm.sh` to `~/.config/hypr/userprefs.conf` so SDDM colors update on every Hyprland login
 
 ### Dark Reader Architecture
 

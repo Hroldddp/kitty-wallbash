@@ -19,6 +19,9 @@ print_action(){ printf "\033[1;36m  →\033[0m %s\n" "$1"; }
 
 SDDM_HELPER="/usr/local/bin/sddm-apply-wallbash"
 SDDM_SUDOERS="/etc/sudoers.d/sddm-wallbash"
+HYPR_USERPREFS="$CONFIG_DIR/hypr/userprefs.conf"
+SDDM_EXEC_ONCE_LINE="# wallbash SDDM"
+SDDM_EXEC_ONCE_CMD="exec-once = bash ${HYDE_SCRIPTS_DIR}/sddm.sh"
 
 LIBS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kitty-wallbash"
 SNAPSHOT_FILE="$LIBS_DIR/hyde-version.txt"
@@ -213,8 +216,11 @@ install_sddm() {
     # Install root helper + NOPASSWD sudo rule
     if [ ! -f "$SDDM_HELPER" ]; then
         print_msg "Installing root helper..."
-        sudo install -m 755 "$src_helper" "$SDDM_HELPER"
-        print_ok "Helper  → $SDDM_HELPER"
+        if sudo install -m 755 "$src_helper" "$SDDM_HELPER"; then
+            print_ok "Helper  → $SDDM_HELPER"
+        else
+            print_err "Helper install failed — run with proper sudo access"
+        fi
     else
         print_ok "Helper already installed at $SDDM_HELPER"
     fi
@@ -222,9 +228,16 @@ install_sddm() {
     if [ ! -f "$SDDM_SUDOERS" ]; then
         print_msg "Installing NOPASSWD sudo rule..."
         echo "${USER} ALL=(ALL) NOPASSWD: $SDDM_HELPER" | \
-            sudo tee "$SDDM_SUDOERS" > /dev/null
-        sudo chmod 440 "$SDDM_SUDOERS"
-        print_ok "Sudoers → $SDDM_SUDOERS"
+            sudo tee "$SDDM_SUDOERS" > /dev/null || {
+            print_err "Sudoers install failed — run with proper sudo access"
+            print_warn "  To install manually:"
+            print_warn "    echo '${USER} ALL=(ALL) NOPASSWD: ${SDDM_HELPER}' | sudo tee ${SDDM_SUDOERS}"
+            print_warn "    sudo chmod 440 ${SDDM_SUDOERS}"
+        }
+        sudo chmod 440 "$SDDM_SUDOERS" 2>/dev/null || true
+        if [ -f "$SDDM_SUDOERS" ]; then
+            print_ok "Sudoers → $SDDM_SUDOERS"
+        fi
     else
         print_ok "NOPASSWD rule already exists at $SDDM_SUDOERS"
     fi
@@ -251,6 +264,25 @@ EOF
         fi
     else
         print_skip "No wallpaper set yet — colors will apply on next wallpaper change"
+    fi
+
+    # Add startup hook so sddm runs on every Hyprland login
+    if [ -f "$HYPR_USERPREFS" ]; then
+        if ! grep -qs "$SDDM_EXEC_ONCE_LINE" "$HYPR_USERPREFS"; then
+            print_msg "Adding SDDM startup hook to $HYPR_USERPREFS..."
+            cat >> "$HYPR_USERPREFS" << EOF
+
+# ${SDDM_EXEC_ONCE_LINE}
+${SDDM_EXEC_ONCE_CMD}
+EOF
+            print_ok "SDDM will apply on every Hyprland login"
+        else
+            print_ok "SDDM startup hook already present"
+        fi
+    else
+        print_warn "Hyprland userprefs.conf not found — cannot add startup hook"
+        print_warn "  Add manually to your hyprland config:"
+        print_warn "  ${SDDM_EXEC_ONCE_CMD}"
     fi
 }
 
